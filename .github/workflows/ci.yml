@@ -1,0 +1,22 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure
+  cuda-compile:
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.8.1-devel-ubuntu22.04
+    steps:
+      - run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git cmake g++
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=75 -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 2
+      - name: CPU tests only (hosted runner has no GPU)
+        run: ctest --test-dir build --output-on-failure -E gpu_reference
